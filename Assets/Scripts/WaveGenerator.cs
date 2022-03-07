@@ -22,23 +22,39 @@ public class WaveGenerator : MonoBehaviour
     public RenderTexture h0k_RenderTexture;
     public RenderTexture h0minusk_RenderTexture;
 
-    public Material mat;
+
+    public Material matH0k;
+    public Material matH0minusk;
 
     // MeshData meshData;
 
-    void OnRenderImage(RenderTexture src, RenderTexture dest)
+    // void OnRenderImage(RenderTexture src, RenderTexture dest)
+    // {
+
+    //     mat.SetTexture("_MainTex", h0k_RenderTexture);
+    //     // Read pixels from the source RenderTexture, apply the material, copy the updated results to the destination RenderTexture
+    //     Graphics.Blit(h0k_RenderTexture, dest);
+
+    // }
+    bool shouldUpdate;
+    void Awake()
     {
-
-        mat.SetTexture("_MainTex", h0k_RenderTexture);
-        // Read pixels from the source RenderTexture, apply the material, copy the updated results to the destination RenderTexture
-        Graphics.Blit(h0k_RenderTexture, dest);
-
+        shouldUpdate = true;
     }
-
     void OnValidate()
     {
-        genFourierAmplitude();
+        shouldUpdate = true;
+    }
 
+    void Update()
+    {
+        if (shouldUpdate)
+        {
+            genFourierAmplitude();
+            matH0k.SetTexture("_MainTex", h0k_RenderTexture);
+            matH0minusk.SetTexture("_MainTex", h0minusk_RenderTexture);
+            shouldUpdate = false;
+        }
     }
 
     void genFourierAmplitude()
@@ -51,8 +67,9 @@ public class WaveGenerator : MonoBehaviour
         // if (h0minusk_RenderTexture == null)
         createTexture(ref h0minusk_RenderTexture, meshGenerator.N, meshGenerator.M);
 
+
         int initialSpectrumKernel = fourierAmplitudeCompute.FindKernel("CSInitialSpectrum");
-        int conjugateSpectrumKernel = fourierAmplitudeCompute.FindKernel("CSConjugateSpectrum");
+        // int conjugateSpectrumKernel = fourierAmplitudeCompute.FindKernel("CSConjugateSpectrum");
 
         fourierAmplitudeCompute.SetInt("N", meshGenerator.N);
         fourierAmplitudeCompute.SetFloat("Lx", meshGenerator.Lx);
@@ -64,22 +81,32 @@ public class WaveGenerator : MonoBehaviour
 
         fourierAmplitudeCompute.SetTexture(initialSpectrumKernel, "GaussianNoise", gaussianNoise);
         fourierAmplitudeCompute.SetTexture(initialSpectrumKernel, "H0k", h0k_RenderTexture);
+        fourierAmplitudeCompute.SetTexture(initialSpectrumKernel, "H0minusk", h0minusk_RenderTexture);
+
         fourierAmplitudeCompute.Dispatch(initialSpectrumKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
 
-        fourierAmplitudeCompute.SetTexture(conjugateSpectrumKernel, "H0k", h0k_RenderTexture);
-        fourierAmplitudeCompute.SetTexture(conjugateSpectrumKernel, "H0minusk", h0minusk_RenderTexture);
-        fourierAmplitudeCompute.Dispatch(conjugateSpectrumKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+        // fourierAmplitudeCompute.SetTexture(conjugateSpectrumKernel, "H0k", h0k_RenderTexture);
+        // fourierAmplitudeCompute.SetTexture(conjugateSpectrumKernel, "H0minusk", h0minusk_RenderTexture);
+        // fourierAmplitudeCompute.Dispatch(conjugateSpectrumKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
     }
 
     void createTexture(ref RenderTexture renderTexture, int xResolution, int yResolution)
     {
-        renderTexture = new RenderTexture(xResolution, yResolution, 0, RenderTextureFormat.ARGB32);
-        renderTexture.enableRandomWrite = true;
-        // renderTexture.volumeDepth = resolution;
-        renderTexture.dimension = UnityEngine.Rendering.TextureDimension.Tex2D;
-        renderTexture.wrapMode = TextureWrapMode.Mirror;
-        renderTexture.filterMode = FilterMode.Bilinear;
-        renderTexture.Create();
+        if (renderTexture == null || !renderTexture.IsCreated() || renderTexture.width != xResolution || renderTexture.height != yResolution)
+        {
+            if (renderTexture != null)
+            {
+                renderTexture.Release();
+            }
+            renderTexture = new RenderTexture(xResolution, yResolution, 0, RenderTextureFormat.ARGB32);
+            renderTexture.enableRandomWrite = true;
+            // renderTexture.volumeDepth = resolution;
+            renderTexture.dimension = UnityEngine.Rendering.TextureDimension.Tex2D;
+            renderTexture.wrapMode = TextureWrapMode.Mirror;
+            renderTexture.filterMode = FilterMode.Bilinear;
+            renderTexture.Create();
+        }
+
     }
 
 }

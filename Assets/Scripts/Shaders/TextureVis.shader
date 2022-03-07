@@ -1,4 +1,4 @@
-Shader "Custom/NoiseVis"
+Shader "Custom/TextureVis"
 {
     Properties
     {
