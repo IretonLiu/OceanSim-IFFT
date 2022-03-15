@@ -1,68 +1,95 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSInitialSpectrum
-// #pragma kernel CSConjugateSpectrum
+#pragma kernel CSFourierAmplitude
+#define PI 3.1415926535897932384626433832795
 
-#define PI 3.14159265358979
-#define g 9.81
+// #include "Complex.compute"
+
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
+// RWTexture2D<float4> Result;
+RWTexture2D<float4> H0k;
+RWTexture2D<float4> H0minusk;
+
+RWTexture2D<float4> Hkt;
+RWTexture2D<float4> Hkt_dx;
+RWTexture2D<float4> Hkt_dz;
 
 
-int N; // number of points on side;
-float Lx; // dimension;
+int N;
+float Lx;
+float t;
 
-float windSpeed;
-float2 windDirection;
-float A;
+struct Complex{
+    float real;
+    float im;
+};
 
+Complex c_mul(Complex c1, Complex c2){
+    Complex res;
+    res.real = c1.real * c2.real - c1.im * c2.im;
+    res.im = c1.real *  c2.im + c1.im * c2.real;
+    return res;
+}
 
-Texture2D<float2> GaussianNoise;
-SamplerState SamplerGaussianNoise;
+Complex c_add(Complex c1, Complex c2){
+    Complex res;
+    res.real = c1.real + c2.real;
+    res.im = c2.im + c2.im;
+    return res;
+}
 
-RWTexture2D<float4> H0k; // h0(k)
-RWTexture2D<float4> H0minusk; // h0(-k)
-RWTexture2D<float4> H0minusk2;
+Complex c_conj (Complex c)
+{
+    Complex conj;
+    conj.real = c.real;
+    conj.im = -c.im;
+    return conj;
+}
 
 [numthreads(16,16,1)]
-void CSInitialSpectrum (uint3 id : SV_DispatchThreadID)
+void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 {
+    
+    //The Fourier amplitude will be separated in to dx, dy, dz, i.e. the change in each direction
     float2 x = float2(id.xy) - float(N) / 2.0; // centres the values from 0 - N to -N/2 - N/2
-    float2 k = float2(2.0 * PI * x.x / Lx, 2.0 * PI * x.y / Lx);
+    float2 k = float2(2.0 * PI * x.x / Lx, 2.0 * PI * x.y / Lx); // wave number 
 
-    float L = windSpeed * windSpeed / g; // the largest wave possible, not to be confused with Lx
-
+    
     float k_mag = length(k);    // |k|
     if (k_mag < 0.000001) k_mag = 0.000001;
-    float k_magSqr = k_mag * k_mag; // |k|^2
+
+    float w = sqrt(9.81*k_mag); //dispersion
+
+    float2 h0k_val = H0k[id.xy].rg;
+    float2 h0minusk_val = H0minusk[id.xy].rg;
+
+    Complex c_h0k; 
+    c_h0k.real = h0k_val.x; 
+    c_h0k.im = h0k_val.y; 
+    Complex c_h0minusk; 
+    c_h0minusk.real = h0minusk_val.x; 
+    c_h0minusk.im = h0minusk_val.y; 
+    Complex h0minusk_conj = c_conj(c_h0minusk);
+
+    //euler's formula
+
+    float cos_wt = cos(w * t);
+    float sin_wt = sin(w * t);
+
+    Complex e_iwt; e_iwt.real = cos_wt; e_iwt.im = sin_wt;
+    Complex e_minusiwt; e_minusiwt.real = cos_wt; e_minusiwt.im = -sin_wt;
 
 
-    // constant terms in Ph
+    // dy for height 
+    Complex hkt = c_add(c_mul(c_h0k, e_iwt), c_mul(c_h0minusk, e_minusiwt));
 
-    float c = A * (exp(-1 / pow((k_mag*L), 2)) / (k_magSqr * k_magSqr)) * exp(-k_magSqr * pow(L / 2000, 2));
+    // account for wave movement in the k direction
+    Complex dx; dx.real = 0.0; dx.im = -k.x/k_mag;
+    Complex hkt_dx = c_mul(dx , hkt) ;
 
-    // Ph(k)
-    float phk = c * pow(dot(normalize(k), normalize(windDirection)), 2);
-    // // Ph(-k)
-    float phminusk = c * pow(dot(normalize(-k), normalize(windDirection)), 2);
+    Complex dz; dz.real = 0.0; dz.im = -k.y/k_mag;
 
-
-    float2 gaussianNoiseDraw = GaussianNoise[id.xy];
-
-    float2 h0k =  (GaussianNoise[id.xy] * clamp(sqrt(phk), -4000, 4000)) / (sqrt(2));
-    float2 h0minusk = (GaussianNoise[id.xy] * clamp(sqrt(phminusk), -4000, 4000)) / (sqrt(2));
-    H0k[id.xy] = float4(h0k, 0, 1);
-    H0minusk[id.xy] = float4(h0minusk, 0, 1);
-
+    Complex hkt_dz = c_mul(dz , hkt) ;
 
     // Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
 }
-
-// get h0minusk from h0k
-// [numthreads(16,16,1)]
-// void CSConjugateSpectrum (uint3 id: SV_DispatchThreadID)
-// {
-//     float2 h0k = H0k[id.xy].xy;
-//     float2 h0minusk = H0k[uint2((N - id.x -1) % N, (N - id.y -1) % N)].xy;
-//     H0minusk[id.xy] = float4(h0minusk, 0, 1);
-// }
-// not sure how this works

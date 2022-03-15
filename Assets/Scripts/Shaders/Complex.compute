@@ -1,0 +1,31 @@
+#ifndef COMPLEX_NUM_FUNC
+#define COMPLEX_NUM_FUNC
+
+// utility shader for complex number calculations
+
+struct Complex{
+    float real;
+    float im;
+};
+
+Complex c_mul(Complex c1, Complex c2){
+    Complex res;
+    res.real = c1.real * c2.real - c1.im * c2.im;
+    res.im = c1.real *  c2.im + c1.im * c2.real;
+    return res;
+}
+
+Complex c_add(Complex c1, Complex c2){
+    Complex res;
+    res.real = c1.real + c2.real;
+    res.im = c2.im + c2.im;
+    return res;
+}
+
+Complex c_conj (Complex c)
+{
+    Complex conj = Complex(c.real, -c.im) ;
+    return conj ;
+}
+
+#endif
