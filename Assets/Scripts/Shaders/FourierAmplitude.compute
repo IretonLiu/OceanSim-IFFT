@@ -1,6 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSFourierAmplitude
-#define PI 3.1415926535897932384626433832795
+#define M_PI 3.1415926535897932384626433832795
 
 // #include "Complex.compute"
 
@@ -10,7 +10,7 @@
 RWTexture2D<float4> H0k;
 RWTexture2D<float4> H0minusk;
 
-RWTexture2D<float4> Hkt;
+RWTexture2D<float4> Hkt_dy;
 RWTexture2D<float4> Hkt_dx;
 RWTexture2D<float4> Hkt_dz;
 
@@ -19,77 +19,97 @@ int N;
 float Lx;
 float t;
 
-struct Complex{
-    float real;
-    float im;
-};
+// struct Complex{
+//     float real;
+//     float im;
+// };
 
-Complex c_mul(Complex c1, Complex c2){
-    Complex res;
-    res.real = c1.real * c2.real - c1.im * c2.im;
-    res.im = c1.real *  c2.im + c1.im * c2.real;
-    return res;
-}
+// Complex c_mul(Complex c0, Complex c1){
+//     Complex c;
+//     c.real = c0.real * c1.real - c0.im * c1.im;
+//     c.im = c0.real *  c1.im + c0.im * c1.real;
+//     return c;
+// }
 
-Complex c_add(Complex c1, Complex c2){
-    Complex res;
-    res.real = c1.real + c2.real;
-    res.im = c2.im + c2.im;
-    return res;
-}
+// Complex c_add(Complex c0, Complex c1){
+//     Complex c;
+//     c.real = c0.real + c1.real;
+//     c.im = c0.im + c1.im;
+//     return c;
+// }
 
-Complex c_conj (Complex c)
+// Complex c_conj (Complex c)
+// {
+//     Complex conj;
+//     conj.real = c.real;
+//     conj.im = -c.im;
+//     return conj;
+// }
+
+float2 ComplexMult(float2 a, float2 b)
 {
-    Complex conj;
-    conj.real = c.real;
-    conj.im = -c.im;
-    return conj;
+	return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
 [numthreads(16,16,1)]
 void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 {
-    
     //The Fourier amplitude will be separated in to dx, dy, dz, i.e. the change in each direction
     float2 x = float2(id.xy) - float(N) / 2.0; // centres the values from 0 - N to -N/2 - N/2
-    float2 k = float2(2.0 * PI * x.x / Lx, 2.0 * PI * x.y / Lx); // wave number 
+    float2 k = float2(2.0 * M_PI * x.x / Lx, 2.0 * M_PI * x.y / Lx); // wave number 
 
     
     float k_mag = length(k);    // |k|
-    if (k_mag < 0.000001) k_mag = 0.000001;
+    if (k_mag < 0.000001) k_mag = 0.0;
 
-    float w = sqrt(9.81*k_mag); //dispersion
+    // dispersion
+    float w_0 = 2.0f * M_PI / 50.0f;
+    float w = floor(sqrt(9.81 * k_mag) / w_0) * w_0; //dispersion
 
-    float2 h0k_val = H0k[id.xy].rg;
-    float2 h0minusk_val = H0minusk[id.xy].rg;
+    float2 h0k = H0k[id.xy].rg;
 
-    Complex c_h0k; 
-    c_h0k.real = h0k_val.x; 
-    c_h0k.im = h0k_val.y; 
-    Complex c_h0minusk; 
-    c_h0minusk.real = h0minusk_val.x; 
-    c_h0minusk.im = h0minusk_val.y; 
-    Complex h0minusk_conj = c_conj(c_h0minusk);
+    float2 h0minusk = H0minusk[id.xy].rg;
+
+    float2 h0minusk_conj = float2(h0minusk.x, -h0minusk.y);
+
+    
+    // Complex fourier_amp; 
+    // fourier_amp.real = h0k_val.x; 
+    // fourier_amp.im = h0k_val.y; 
+
+    // Complex c_h0minusk; 
+    // c_h0minusk.real = h0minusk_val.x; 
+    // c_h0minusk.im = h0minusk_val.y; 
+
+    // Complex fourier_amp_conj = c_conj(c_h0minusk);
 
     //euler's formula
 
     float cos_wt = cos(w * t);
     float sin_wt = sin(w * t);
 
-    Complex e_iwt; e_iwt.real = cos_wt; e_iwt.im = sin_wt;
-    Complex e_minusiwt; e_minusiwt.real = cos_wt; e_minusiwt.im = -sin_wt;
+    float2 e_iwt = float2(cos_wt, sin_wt);
+    float2 e_miwt = float2(cos_wt, -sin_wt);
+    // Complex e_iwt; e_iwt.real = cos_wt; e_iwt.im = sin_wt;
+
+    // Complex e_minusiwt; e_minusiwt.real = cos_wt; e_minusiwt.im = -sin_wt;
 
 
     // dy for height 
-    Complex hkt = c_add(c_mul(c_h0k, e_iwt), c_mul(c_h0minusk, e_minusiwt));
+    float2 hkt_dy = ComplexMult(h0k, e_iwt) + ComplexMult(h0minusk_conj, e_miwt);
 
-    // account for wave movement in the k direction
-    Complex dx; dx.real = 0.0; dx.im = -k.x/k_mag;
-    Complex hkt_dx = c_mul(dx , hkt) ;
+    // // account for wave movement in the k direction
+    // Complex dx; dx.real = 0.0; dx.im = -k.x/k_mag;
+    // Complex hkt_dx = c_mul(dx , hkt_dy);
 
-    Complex dz; dz.real = 0.0; dz.im = -k.y/k_mag;
+    // Complex dz; dz.real = 0.0; dz.im = -k.y/k_mag;
 
-    Complex hkt_dz = c_mul(dz , hkt) ;
+    // Complex hkt_dz = c_mul(dz , hkt_dy);
+
+    Hkt_dy[id.xy] = float4(hkt_dy.x, hkt_dy.y , 0.0, 1.0);
+    // Hkt_dx[id.xy] = float4(hkt_dx.real, hkt_dx.im , 0.0, 1.0);
+    // Hkt_dz[id.xy] = float4(hkt_dz.real, hkt_dz.im , 0.0, 1.0);
+
 
     // Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
 }
