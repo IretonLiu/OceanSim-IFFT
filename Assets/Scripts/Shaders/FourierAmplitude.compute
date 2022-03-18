@@ -51,28 +51,28 @@ float2 ComplexMult(float2 a, float2 b)
 	return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
+float dispersion(float2 k){
+   	float w_0 = 2.0f * M_PI / 200.0f;
+    float k_mag = length(k);    // |k|
+    if (k_mag < 0.000001) k_mag = 0.0;
+    float w = floor(sqrt(9.81 * k_mag) / w_0) * w_0; //dispersion
+		return w;
+}
+
 [numthreads(16,16,1)]
 void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 {
     //The Fourier amplitude will be separated in to dx, dy, dz, i.e. the change in each direction
-    float2 x = float2(id.xy) - float(N) / 2.0; // centres the values from 0 - N to -N/2 - N/2
-    float2 k = float2(2.0 * M_PI * x.x / Lx, 2.0 * M_PI * x.y / Lx); // wave number 
+    float2 x = float2(id.xy); // centres the values from 0 - N to -N/2 - N/2
+    float2 k = float2(M_PI * (2.0 * x.x - N) / Lx, M_PI * (2.0 * x.y - N) / Lx); // wave number 
 
-    
-    float k_mag = length(k);    // |k|
-    if (k_mag < 0.000001) k_mag = 0.0;
-
+  
     // dispersion
-    float w_0 = 2.0f * M_PI / 50.0f;
-    float w = floor(sqrt(9.81 * k_mag) / w_0) * w_0; //dispersion
-
+		float omega = dispersion(k);
     float2 h0k = H0k[id.xy].rg;
-
     float2 h0minusk = H0minusk[id.xy].rg;
 
     float2 h0minusk_conj = float2(h0minusk.x, -h0minusk.y);
-
-    
     // Complex fourier_amp; 
     // fourier_amp.real = h0k_val.x; 
     // fourier_amp.im = h0k_val.y; 
@@ -85,8 +85,8 @@ void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 
     //euler's formula
 
-    float cos_wt = cos(w * t);
-    float sin_wt = sin(w * t);
+    float cos_wt = cos(omega * t);
+    float sin_wt = sin(omega * t);
 
     float2 e_iwt = float2(cos_wt, sin_wt);
     float2 e_miwt = float2(cos_wt, -sin_wt);
