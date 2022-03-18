@@ -28,14 +28,15 @@ RWTexture2D<float4> H0minusk2;
 [numthreads(16,16,1)]
 void CSInitialSpectrum (uint3 id : SV_DispatchThreadID)
 {
-    float2 x = float2(id.xy) - float(N) / 2.0; // centres the values from 0 - N to -N/2 - N/2
-    float2 k = float2(PI * 2.0 * x.x / Lx, PI * 2.0 * x.y / Lx); // wave number 
-
+    float2 x_prime = float2(id.xy); // centres the values from 0 - N to -N/2 - N/2
+    float2 k = float2(PI *(2.0 * x_prime.x - N) / Lx, PI * (2.0 * x_prime.y - N) / Lx); // wave number 
+    float2 mk = float2(PI *(2.0 * -x_prime.x - N) / Lx, PI * (2.0 * -x_prime.y - N) / Lx); // wave number 
     float L = windSpeed * windSpeed / g; // the largest wave possible, not to be confused with Lx
 
     float k_mag = length(k);    // |k|
     if (k_mag < 0.000001) k_mag = 0.0;
     float k_magSqr = k_mag * k_mag; // |k|^2
+
 
 
     float c = A * (exp(-1 / (k_magSqr*L*L)) / (k_magSqr * k_magSqr)) * exp(-k_magSqr * pow(L / 2000, 2));
@@ -52,9 +53,18 @@ void CSInitialSpectrum (uint3 id : SV_DispatchThreadID)
     float2 gaussianNoiseDraw2 = GaussianNoise2[id.xy].rg;
 
     float2 h0k =  (gaussianNoiseDraw * clamp(sqrt(phk), -4000, 4000)) / (sqrt(2));
-    float2 h0minusk = (gaussianNoiseDraw2 * clamp(sqrt(phminusk), -4000, 4000)) / (sqrt(2));
+    float2 h0minusk = (gaussianNoiseDraw * clamp(sqrt(phminusk), -4000, 4000)) / (sqrt(2));
 
-    H0k[id.xy] = float4(h0k, 0, 1);
+
+    // // if((k/length(k)) == (-k/length(-k))){
+    // //     H0k[id.xy] = float4(1.0, 1.0, 1.0, 1.0);
+    // // }else{
+    //     H0k[id.xy] = float4(h0k, 0, 1);
+    // // }
+    
+    
+
+
     H0minusk[id.xy] = float4(h0minusk, 0, 1);
 
     // float L_ = windSpeed * windSpeed / g; // the largest wave possible, not to be confused with Lx
