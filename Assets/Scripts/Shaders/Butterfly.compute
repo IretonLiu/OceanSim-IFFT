@@ -1,0 +1,108 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSHorizontalButterflies
+#pragma kernel CSVerticalButterflies
+#pragma kernel PrecomputeTwiddleFactorsAndInputIndices
+
+#define PI 3.1415926535897932384626433832795
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> pingpong0; // the fourier amplitude input
+RWTexture2D<float4> pingpong1; // input of 1 is the output of 0
+Texture2D<float4> ButterflyTexture; // used to compute the butterfly operation
+RWTexture2D<float4> ButterflyBuffer;
+uint Size;
+
+int stage; // stage in the butterfly operation, max is log2N
+bool pingpong;
+int direction; // vertical or horizontal
+
+float2 ComplexMult(float2 a, float2 b)
+{
+	return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+
+float2 ComplexExp(float2 a)
+{
+	return float2(cos(a.y), sin(a.y)) * exp(a.x);
+}
+
+[numthreads(1, 16, 1)]
+void PrecomputeTwiddleFactorsAndInputIndices(uint3 id : SV_DispatchThreadID)
+{
+	uint b = Size >> (id.x + 1);
+	float2 mult = 2 * PI * float2(0.0, 1.0) / Size;
+	uint i = (2 * b * (id.y / b) + id.y % b) % Size;
+	float2 twiddle = ComplexExp(-mult * ((id.y / b) * b));
+	ButterflyBuffer[id.xy] = float4(twiddle.x, twiddle.y, i, i + b);
+	ButterflyBuffer[uint2(id.x, id.y + Size / 2)] = float4(-twiddle.x, -twiddle.y, i, i + b);
+}
+
+[numthreads(16,16,1)]
+void CSHorizontalButterflies(uint3 id : SV_DispatchThreadID){
+    float2 H;
+    int2 x = int2(id.xy);
+
+    if(pingpong){
+        float4 butterflyData = ButterflyTexture[int2(stage, x.x)].rgba;
+
+        // get the right pair for fft, these are complex numbers
+        float2 p = pingpong0[int2(butterflyData.z, x.y)].rg;
+        float2 q = pingpong0[int2(butterflyData.w, x.y)].rg;
+        float2 w = float2(butterflyData.x, -butterflyData.y);
+
+        H  = p + ComplexMult(w, q);
+        pingpong1[x] = float4(H, 0.0, 1.0);
+        // if(p.x <=1 && p.y <=1)  pingpong1[x] = float4(1.0, 1.0, 0.0, 1.0);
+    }
+    else if(!pingpong){
+        float4 butterflyData = ButterflyTexture[int2(stage, x.x)].rgba;
+        // get the right pair for fft, these are complex numbers
+        float2 p = pingpong1[int2(butterflyData.z, x.y)].rg;
+        float2 q = pingpong1[int2(butterflyData.w, x.y)].rg;
+        float2 w = float2(butterflyData.x, -butterflyData.y);
+
+        H = p + ComplexMult(w, q);
+        pingpong0[x] = float4(H, 0.0, 1.0);
+        // if(p.x <=1 && p.y <=1)  pingpong1[x] = float4(1.0, 1.0, 0.0, 1.0);
+
+
+    }
+}
+
+[numthreads(16,16,1)]
+void CSVerticalButterflies(uint3 id : SV_DispatchThreadID){
+    float2 H;
+    int2 x = int2(id.xy);
+
+    if(pingpong){
+
+        float4 butterflyData = ButterflyTexture[int2(stage, x.y)].rgba;
+        // get the right pair for fft, these are complex numbers
+        float2 p = pingpong0[int2(x.x, butterflyData.z)].rg;
+        float2 q = pingpong0[int2(x.x, butterflyData.w)].rg;
+        float2 w = float2(butterflyData.x, -butterflyData.y);
+
+        H  = p + ComplexMult(w, q);
+        pingpong1[x] = float4(H, 0.0, 1.0);
+
+    }
+    else if(!pingpong){
+        float4 butterflyData = ButterflyTexture[int2(stage, x.y)].rgba;
+        // get the right pair for fft, these are complex numbers
+        float2 p = pingpong1[int2(x.x, butterflyData.z)].rg;
+        float2 q = pingpong1[int2(x.x, butterflyData.w)].rg;
+        float2 w = float2(butterflyData.x, -butterflyData.y);
+
+        H = p + ComplexMult(w, q);
+        pingpong0[x] = float4(H, 0.0, 1.0);
+
+    }
+}
+
+
+// void CSButterfly (uint3 id : SV_DispatchThreadID)
+// {
+//     if (direction == 0) horizontalButterflies(int2(id.xy));
+//     else if(direction == 1) verticalButterflies(int2(id.xy));
+// }

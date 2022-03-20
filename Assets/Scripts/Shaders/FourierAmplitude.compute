@@ -17,7 +17,7 @@ RWTexture2D<float4> Hkt_dz;
 
 int N;
 float Lx;
-float t;
+// float t;
 
 // struct Complex{
 //     float real;
@@ -62,13 +62,19 @@ float dispersion(float2 k){
 [numthreads(16,16,1)]
 void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 {
+    float t = 0.0;
     //The Fourier amplitude will be separated in to dx, dy, dz, i.e. the change in each direction
     float2 x = float2(id.xy); // centres the values from 0 - N to -N/2 - N/2
-    float2 k = float2(M_PI * (2.0 * x.x - N) / Lx, M_PI * (2.0 * x.y - N) / Lx); // wave number 
+    float2 k = -float2(M_PI * (2.0 * x.x - N) / Lx, M_PI * (2.0 * x.y - N) / Lx); // wave number 
 
   
     // dispersion
-		float omega = dispersion(k);
+	// float omega = dispersion(k);
+
+    float k_mag = length(k);    // |k|
+    if (k_mag < 0.000001) k_mag = 0.0;
+    float omega = sqrt(9.81 * k_mag) ;
+
     float2 h0k = H0k[id.xy].rg;
     float2 h0minusk = H0minusk[id.xy].rg;
 
@@ -97,7 +103,9 @@ void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 
     // dy for height 
     float2 hkt_dy = ComplexMult(h0k, e_iwt) + ComplexMult(h0minusk_conj, e_miwt);
-
+    float2 hkt_conj = float2(hkt_dy.x, -hkt_dy.y);
+    float2 hkt_dx = ComplexMult(float2(0.0, -k.x/k_mag), hkt_dy);
+    float2 hkt_dz = ComplexMult(float2(0.0, -k.y/k_mag), hkt_dy);
     // // account for wave movement in the k direction
     // Complex dx; dx.real = 0.0; dx.im = -k.x/k_mag;
     // Complex hkt_dx = c_mul(dx , hkt_dy);
@@ -107,8 +115,8 @@ void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
     // Complex hkt_dz = c_mul(dz , hkt_dy);
 
     Hkt_dy[id.xy] = float4(hkt_dy.x, hkt_dy.y , 0.0, 1.0);
-    // Hkt_dx[id.xy] = float4(hkt_dx.real, hkt_dx.im , 0.0, 1.0);
-    // Hkt_dz[id.xy] = float4(hkt_dz.real, hkt_dz.im , 0.0, 1.0);
+    Hkt_dx[id.xy] = float4(hkt_dx.x, hkt_dx.y , 0.0, 1.0);
+    Hkt_dz[id.xy] = float4(hkt_dz.x, hkt_dz.y , 0.0, 1.0);
 
 
     // Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);

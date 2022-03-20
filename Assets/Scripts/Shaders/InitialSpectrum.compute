@@ -32,7 +32,7 @@ float phillips(float2 k,float L){
     float k_magSqr = k_mag * k_mag; // |k|^2
 
     float c = A * (exp(-1 / (k_magSqr * L * L)) / (k_magSqr * k_magSqr)) * exp(-k_magSqr * pow(L / 2000, 2));
-		return c * pow(dot(normalize(k), normalize(windDirection)), 2);
+		return c * pow(dot(normalize(k), normalize(windDirection)), 6);
 }
 
 [numthreads(16,16,1)]
@@ -40,7 +40,7 @@ void CSInitialSpectrum (uint3 id : SV_DispatchThreadID)
 {
 		float2 x = float2(id.xy);
     float2 k = float2(PI * (2.0 * x.x - N) / Lx, PI * (2.0 * x.y - N) / Lx); // wave number 
-    float2 mk = float2(PI *(2.0 * -x.x - N) / Lx, PI * (2.0 * -x.y - N) / Lx); // wave number 
+    // float2 mk = float2(PI *(2.0 * -x.x - N) / Lx, PI * (2.0 * -x.y - N) / Lx); // wave number 
     float L = windSpeed * windSpeed / g; // the largest wave possible, not to be confused with Lx
 
     // float k_mag = length(k);    // |k|

@@ -1,0 +1,50 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSButterflyTexture
+#define M_PI 3.1415926535897932384626433832795
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+// RWStructuredBuffer<int> bit_reversed;
+int N;
+
+RWTexture2D<float4> butterflyTexture;
+
+// the x work group will indicate the span of the butterfly, which is log2N
+[numthreads(16,16,1)]
+void CSButterflyTexture (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    
+    int2 x = int2(id.x, id.y);
+    float k = fmod(x.y * (float(N)/ pow(2, x.x + 1)), N); // Nth root of unity
+    float2 twiddle = float2(cos(2.0 * M_PI * k/float(N)), sin(2.0 * M_PI * k/float(N)));
+
+    int butterflyspan = int(pow(2, x.x));
+
+    int butterflywing;
+    // check top or bottom butterfly
+    if(fmod(x.y, pow(2, x.x + 1)) < pow(2, x.x))
+        butterflywing = 1;
+    else butterflywing = 0;
+    
+    // first stage, since x is 0
+    if(x.x == 0){
+        if(butterflywing == 1) // top wing
+            butterflyTexture[id.xy] = float4(twiddle.x, twiddle.y, 
+                                        reversebits(int(x.y)), reversebits(int(x.y + 1)));
+        else // bottom wing
+            butterflyTexture[id.xy] = float4(twiddle.x, twiddle.y, 
+                                        reversebits(int(x.y - 1)), reversebits(int(x.y)));
+    }
+    else{
+        if(butterflywing == 1) // top wing
+            butterflyTexture[id.xy] = float4(twiddle.x, twiddle.y, 
+                                       x.y, x.y + butterflyspan); // add butterflyspan to find the right partner in the butterfly operation
+        else // bottom wing
+            butterflyTexture[id.xy] = float4(twiddle.x, twiddle.y, 
+                                       x.y - butterflyspan, x.y);
+    }
+
+
+    // Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+}

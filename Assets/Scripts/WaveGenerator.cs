@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[ExecuteInEditMode, ImageEffectAllowedInSceneView]
+// [ExecuteInEditMode, ImageEffectAllowedInSceneView]
 public class WaveGenerator : MonoBehaviour
 {
     // Start is called before the first frame update
@@ -19,31 +19,26 @@ public class WaveGenerator : MonoBehaviour
     public Texture2D gaussianNoise2;
     public ComputeShader initialSpectrumCompute; // h0(k) h0(-k)
     public ComputeShader fourierAmplitudeCompute;
-
+    public ComputeShader butterflyTextureCompute;
+    public ComputeShader butterflyCompute;
+    public ComputeShader inversePermutationCompute;
 
     public RenderTexture h0k_RenderTexture;
     public RenderTexture h0minusk_RenderTexture;
+
+    public RenderTexture butterflyTexture;
 
 
     public RenderTexture hktDy; // height change, this is the h0 from the paper
     public RenderTexture hktDx; // directional change
     public RenderTexture hktDz; // directional change
 
+    public RenderTexture displacement;
+    public RenderTexture pingpong0;
+    public RenderTexture pingpong1;
 
     public Material matVis;
-    // public Material matH0minusk;
 
-
-    // MeshData meshData;
-
-    // void OnRenderImage(RenderTexture src, RenderTexture dest)
-    // {
-
-    //     mat.SetTexture("_MainTex", h0k_RenderTexture);
-    //     // Read pixels from the source RenderTexture, apply the material, copy the updated results to the destination RenderTexture
-    //     Graphics.Blit(h0k_RenderTexture, dest);
-
-    // }
     bool shouldUpdate;
     void Awake()
     {
@@ -62,12 +57,17 @@ public class WaveGenerator : MonoBehaviour
         if (shouldUpdate)
         {
             genInitialSpectrum();
-            matVis.SetTexture("_MainTex", hktDy);
+            // matVis.SetTexture("_MainTex", hktDy);
             // matH0minusk.SetTexture("_MainTex", h0minusk_RenderTexture);
+            // computeButterflyTexture();
+            butterflyTexture = PrecomputeTwiddleFactorsAndInputIndices();
+
             shouldUpdate = false;
         }
         calcFourierAmplitude();
-        matVis.SetTexture("_MainTex", hktDy);
+        fft(hktDy);
+
+        matVis.SetTexture("_MainTex", displacement);
 
         // if (h0k_RenderTexture != null && h0minusk_RenderTexture != null)
         // {
@@ -123,6 +123,9 @@ public class WaveGenerator : MonoBehaviour
         initialSpectrumCompute.SetTexture(initialSpectrumKernel, "H0minusk", h0minusk_RenderTexture);
 
         initialSpectrumCompute.Dispatch(initialSpectrumKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+
+
+
     }
 
     void calcFourierAmplitude()
@@ -151,8 +154,94 @@ public class WaveGenerator : MonoBehaviour
         fourierAmplitudeCompute.Dispatch(fourierAmplitudeKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
     }
 
+    void computeButterflyTexture()
+    {
+        MeshGenerator meshGenerator = FindObjectOfType<MeshGenerator>();
+        createTexture(ref butterflyTexture, (int)Mathf.Log(meshGenerator.N, 2), meshGenerator.M);
+        int butterflyTextureKernel = butterflyTextureCompute.FindKernel("CSButterflyTexture");
+
+        butterflyTextureCompute.SetInt("N", meshGenerator.N);
+        butterflyTextureCompute.SetTexture(butterflyTextureKernel, "butterflyTexture", butterflyTexture);
+
+        butterflyTextureCompute.Dispatch(butterflyTextureKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+        return;
+    }
+
+    RenderTexture PrecomputeTwiddleFactorsAndInputIndices()
+    {
+        MeshGenerator meshGenerator = FindObjectOfType<MeshGenerator>();
+        int size = meshGenerator.N;
+        int logSize = (int)Mathf.Log(size, 2);
+        RenderTexture rt = new RenderTexture(logSize, size, 0,
+            RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        rt.filterMode = FilterMode.Point;
+        rt.wrapMode = TextureWrapMode.Repeat;
+        rt.enableRandomWrite = true;
+        rt.Create();
+
+        int precomputeKernel = butterflyCompute.FindKernel("PrecomputeTwiddleFactorsAndInputIndices");
+
+        butterflyCompute.SetInt("Size", size);
+        butterflyCompute.SetTexture(precomputeKernel, "ButterflyBuffer", rt);
+        butterflyCompute.Dispatch(precomputeKernel, logSize, size / LOCAL_WORK_GROUP_Y, 1);
+        return rt;
+    }
+
+    void fft(RenderTexture fourierAmplitude)
+    {
+        MeshGenerator meshGenerator = FindObjectOfType<MeshGenerator>();
+
+        pingpong0 = fourierAmplitude;
+        createTexture(ref pingpong1, meshGenerator.N, meshGenerator.M);
+        createTexture(ref displacement, meshGenerator.N, meshGenerator.M);
+
+        int hButterflyKernel = butterflyCompute.FindKernel("CSHorizontalButterflies");
+        int vButterflyKernel = butterflyCompute.FindKernel("CSVerticalButterflies");
+        bool pingpong = false;
+
+        butterflyCompute.SetTexture(hButterflyKernel, "pingpong0", pingpong0);
+        butterflyCompute.SetTexture(hButterflyKernel, "pingpong1", pingpong1);
+        butterflyCompute.SetTexture(hButterflyKernel, "ButterflyTexture", butterflyTexture);
+        // horizontal fft
+        for (int i = 0; i < (int)Mathf.Log(meshGenerator.N, 2); i++)
+        {
+            pingpong = !pingpong;
+            butterflyCompute.SetInt("stage", i);
+            butterflyCompute.SetInt("direction", 0);
+            butterflyCompute.SetBool("pingpong", pingpong);
+            butterflyCompute.Dispatch(hButterflyKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+
+        }
+
+        pingpong0 = fourierAmplitude;
+
+        butterflyCompute.SetTexture(vButterflyKernel, "pingpong0", pingpong0);
+        butterflyCompute.SetTexture(vButterflyKernel, "pingpong1", pingpong1);
+        butterflyCompute.SetTexture(vButterflyKernel, "ButterflyTexture", butterflyTexture);
+        // vertical fft
+        // pingpong = 0;
+
+        for (int i = 0; i < (int)Mathf.Log(meshGenerator.M, 2); i++)
+        {
+            pingpong = !pingpong;
+            butterflyCompute.SetInt("stage", i);
+            butterflyCompute.SetInt("direction", 1);
+            butterflyCompute.SetBool("pingpong", pingpong);
+
+            butterflyCompute.Dispatch(vButterflyKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+        }
 
 
+        int invPermKernel = inversePermutationCompute.FindKernel("CSMain");
+
+        inversePermutationCompute.SetBool("pingpong", pingpong);
+        inversePermutationCompute.SetInt("N", meshGenerator.N);
+        inversePermutationCompute.SetTexture(invPermKernel, "displacement", displacement);
+        inversePermutationCompute.SetTexture(invPermKernel, "pingpong0", pingpong0);
+        inversePermutationCompute.SetTexture(invPermKernel, "pingpong1", pingpong1);
+        inversePermutationCompute.Dispatch(invPermKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+
+    }
     void createTexture(ref RenderTexture renderTexture, int xResolution, int yResolution)
     {
         if (renderTexture == null || !renderTexture.IsCreated() || renderTexture.width != xResolution || renderTexture.height != yResolution)
@@ -161,12 +250,14 @@ public class WaveGenerator : MonoBehaviour
             {
                 renderTexture.Release();
             }
-            renderTexture = new RenderTexture(xResolution, yResolution, 0, RenderTextureFormat.ARGB32);
+            renderTexture = new RenderTexture(xResolution, yResolution, 0, RenderTextureFormat.ARGBFloat);
             renderTexture.enableRandomWrite = true;
-            // renderTexture.volumeDepth = resolution;
-            renderTexture.dimension = UnityEngine.Rendering.TextureDimension.Tex2D;
-            renderTexture.wrapMode = TextureWrapMode.Mirror;
-            renderTexture.filterMode = FilterMode.Bilinear;
+            renderTexture.wrapMode = TextureWrapMode.Repeat;
+            renderTexture.filterMode = FilterMode.Trilinear;
+            renderTexture.useMipMap = false;
+            renderTexture.autoGenerateMips = false;
+            renderTexture.anisoLevel = 6;
+
             renderTexture.Create();
         }
 

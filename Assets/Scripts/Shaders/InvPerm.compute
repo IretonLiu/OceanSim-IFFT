@@ -1,0 +1,37 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> displacement; // heightmap
+
+RWTexture2D<float4> pingpong0; 
+RWTexture2D<float4> pingpong1; 
+
+bool pingpong;
+uint N;
+
+[numthreads(16,16,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // int2 x = int2(id.xy);
+    // float perms[] = {1.0, -1.0};
+    // int index = int(fmod((int(x.x + x.y)), 2));
+    // float perm = perms[index];
+    float h;
+    if(!pingpong){
+        h = pingpong0[id.xy].r;
+
+    } 
+    else if(pingpong){
+        h = pingpong1[id.xy].r;
+
+    }
+    
+    h = h / N / (N/2);
+    h *= (1.0 - 2.0 * ((id.x + id.y) % 2));
+    displacement[id.xy] = float4(h, h, h, 1);
+
+}
+
+
