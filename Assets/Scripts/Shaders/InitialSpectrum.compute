@@ -18,12 +18,11 @@ float A;
 
 Texture2D<float2> GaussianNoise;
 SamplerState SamplerGaussianNoise;
-Texture2D<float4> GaussianNoise2;
+Texture2D<float2> GaussianNoise2;
 SamplerState SamplerGaussianNoise2;
 
 RWTexture2D<float4> H0k; // h0(k)
 RWTexture2D<float4> H0minusk; // h0(-k)
-RWTexture2D<float4> H0minusk2;
 
 
 float phillips(float2 k,float L){
@@ -38,8 +37,8 @@ float phillips(float2 k,float L){
 [numthreads(16,16,1)]
 void CSInitialSpectrum (uint3 id : SV_DispatchThreadID)
 {
-		float2 x = float2(id.xy);
-    float2 k = float2(PI * (2.0 * x.x - N) / Lx, PI * (2.0 * x.y - N) / Lx); // wave number 
+    float2 x = float2(id.xy) - float(N) / 2.0;
+    float2 k = float2(PI * 2.0 * x.x / Lx, PI * 2.0 * x.y / Lx); // wave number 
     // float2 mk = float2(PI *(2.0 * -x.x - N) / Lx, PI * (2.0 * -x.y - N) / Lx); // wave number 
     float L = windSpeed * windSpeed / g; // the largest wave possible, not to be confused with Lx
 

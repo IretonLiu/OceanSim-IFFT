@@ -7,7 +7,7 @@ public class GaussianNoiseTexture
     // Start is called before the first frame update
     public Texture2D generateGaussianTexture(int width, int height)
     {
-        Texture2D gaussianTexture = new Texture2D(width, height);
+        Texture2D gaussianTexture = new Texture2D(width, height, TextureFormat.RGFloat, 0, false);
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)

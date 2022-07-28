@@ -10,41 +10,18 @@
 RWTexture2D<float4> H0k;
 RWTexture2D<float4> H0minusk;
 
-RWTexture2D<float4> Hkt_dy;
-RWTexture2D<float4> Hkt_dx;
 RWTexture2D<float4> Hkt_dz;
+RWTexture2D<float4> Hkt_dx;
+RWTexture2D<float4> Hkt_dy;
+
+// gradient
+RWTexture2D<float4> Dhkt_dx; 
+RWTexture2D<float4> Dhkt_dz;
 
 
 int N;
 float Lx;
-// float t;
-
-// struct Complex{
-//     float real;
-//     float im;
-// };
-
-// Complex c_mul(Complex c0, Complex c1){
-//     Complex c;
-//     c.real = c0.real * c1.real - c0.im * c1.im;
-//     c.im = c0.real *  c1.im + c0.im * c1.real;
-//     return c;
-// }
-
-// Complex c_add(Complex c0, Complex c1){
-//     Complex c;
-//     c.real = c0.real + c1.real;
-//     c.im = c0.im + c1.im;
-//     return c;
-// }
-
-// Complex c_conj (Complex c)
-// {
-//     Complex conj;
-//     conj.real = c.real;
-//     conj.im = -c.im;
-//     return conj;
-// }
+float t;
 
 float2 ComplexMult(float2 a, float2 b)
 {
@@ -62,10 +39,10 @@ float dispersion(float2 k){
 [numthreads(16,16,1)]
 void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 {
-    float t = 0.0;
+
     //The Fourier amplitude will be separated in to dx, dy, dz, i.e. the change in each direction
-    float2 x = float2(id.xy); // centres the values from 0 - N to -N/2 - N/2
-    float2 k = -float2(M_PI * (2.0 * x.x - N) / Lx, M_PI * (2.0 * x.y - N) / Lx); // wave number 
+    float2 x = float2(id.xy) - float(N) / 2.0; // centres the values from 0 - N to -N/2 - N/2
+    float2 k = float2(M_PI * 2.0 * x.x / Lx, M_PI * 2.0 * x.y / Lx); // wave number 
 
   
     // dispersion
@@ -103,9 +80,21 @@ void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 
     // dy for height 
     float2 hkt_dy = ComplexMult(h0k, e_iwt) + ComplexMult(h0minusk_conj, e_miwt);
-    float2 hkt_conj = float2(hkt_dy.x, -hkt_dy.y);
-    float2 hkt_dx = ComplexMult(float2(0.0, -k.x/k_mag), hkt_dy);
-    float2 hkt_dz = ComplexMult(float2(0.0, -k.y/k_mag), hkt_dy);
+    float2 hkt_dx;
+    float2 hkt_dz;
+    
+    if (k_mag == 0.0) {
+        hkt_dx = float2(0.0f, 0.0f);
+        hkt_dz = float2(0.0f, 0.0f);
+    }
+    else {
+        hkt_dx = ComplexMult(float2(0.0, -k.x / k_mag), hkt_dy);
+        hkt_dz = ComplexMult(float2(0.0, -k.y / k_mag), hkt_dy);
+    }
+
+
+    float2 dhkt_dx = ComplexMult(float2(0.0, k.x), hkt_dy);
+    float2 dhkt_dz = ComplexMult(float2(0.0, k.y), hkt_dy);
     // // account for wave movement in the k direction
     // Complex dx; dx.real = 0.0; dx.im = -k.x/k_mag;
     // Complex hkt_dx = c_mul(dx , hkt_dy);
@@ -114,9 +103,12 @@ void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 
     // Complex hkt_dz = c_mul(dz , hkt_dy);
 
-    Hkt_dy[id.xy] = float4(hkt_dy.x, hkt_dy.y , 0.0, 1.0);
     Hkt_dx[id.xy] = float4(hkt_dx.x, hkt_dx.y , 0.0, 1.0);
+    Hkt_dy[id.xy] = float4(hkt_dy.x, hkt_dy.y , 0.0, 1.0);
     Hkt_dz[id.xy] = float4(hkt_dz.x, hkt_dz.y , 0.0, 1.0);
+
+    Dhkt_dx[id.xy] = float4(dhkt_dx.x, dhkt_dx.y, 0.0, 1.0);
+    Dhkt_dz[id.xy] = float4(dhkt_dz.x, dhkt_dz.y, 0.0, 1.0);
 
 
     // Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);

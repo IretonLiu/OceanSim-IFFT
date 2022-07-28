@@ -1,0 +1,26 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSCombine
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> displacementX;
+RWTexture2D<float4> displacementY;
+RWTexture2D<float4> displacementZ;
+
+RWTexture2D<float4> slopeX;
+RWTexture2D<float4> slopeZ;
+
+RWTexture2D<float4> displacement;
+RWTexture2D<float4> slope;
+
+
+float lambda;
+
+[numthreads(16,16,1)]
+void CSCombine (uint3 id : SV_DispatchThreadID)
+{
+
+    displacement[id.xy] = float4(lambda * displacementX[id.xy].r, displacementY[id.xy].r, lambda * displacementZ[id.xy].r, 1.0);
+    slope[id.xy] = float4(slopeX[id.xy].r, 0.0, slopeZ[id.xy].r, 1.0);
+
+}

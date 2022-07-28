@@ -2,14 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// [ExecuteInEditMode]
-public class MeshGenerator : MonoBehaviour
+
+public class MeshGenerator
 {
     // Start is called before the first frame update
 
-    // mesh dimension settings
-    [Header("Mesh Settings")]
-    public bool isSquare;
+    bool isSquare;
     // number of points on each side
     public int N;
     public int M;
@@ -17,27 +15,19 @@ public class MeshGenerator : MonoBehaviour
     public float Lx;
     public float Lz;
 
-    [HideInInspector]
     public MeshData meshData;
 
-    Mesh oceanMesh;
-    void Start()
+    public Mesh oceanMesh;
+    public MeshGenerator(int N, int M, float Lx, float Lz)
     {
-        Transform transform = GetComponent<Transform>();
-        transform.localScale = new Vector3(Lx, 1, Lz);
-
-
-        MeshFilter meshFilter = GetComponent<MeshFilter>();
         oceanMesh = new Mesh();
-        meshFilter.mesh = oceanMesh;
-
-        genVertexAndIndexArray();
-
-        updateMesh();
-
+        this.N = N;
+        this.M = M;
+        this.Lx = Lx;
+        this.Lz = Lz;
     }
 
-    void genVertexAndIndexArray()
+    public void genVertexAndIndexArray()
     {
         // init mesh data
         meshData = new MeshData(true, N, M);
@@ -65,7 +55,7 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
-    void updateMesh()
+    public void updateMesh()
     {
         if (meshData.vertexArray.Length > 256) oceanMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         else oceanMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
@@ -76,24 +66,7 @@ public class MeshGenerator : MonoBehaviour
         oceanMesh.RecalculateNormals();
     }
 
-    void OnValidate()
-    {
-        if (N < 256) N = 256;
-        if (M < 256) M = 256;
-        if (Lx < 1) Lx = 1;
-        if (Lz < 1) Lz = 1;
 
-        if (isSquare)
-        {
-            M = N;
-            Lz = Lx;
-        }
-
-
-        genVertexAndIndexArray();
-        if (oceanMesh != null)
-            updateMesh();
-    }
 }
 
 public class MeshData

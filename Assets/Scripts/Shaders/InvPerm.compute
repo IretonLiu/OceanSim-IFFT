@@ -14,22 +14,21 @@ uint N;
 [numthreads(16,16,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    // int2 x = int2(id.xy);
-    // float perms[] = {1.0, -1.0};
-    // int index = int(fmod((int(x.x + x.y)), 2));
-    // float perm = perms[index];
+    int2 x = int2(id.xy);
+    float perms[] = {1.0, -1.0};
+    int index = int(fmod((int(x.x + x.y)), 2));
+    float perm = perms[index];
     float h;
     if(!pingpong){
         h = pingpong0[id.xy].r;
 
     } 
-    else if(pingpong){
+    else{
         h = pingpong1[id.xy].r;
 
     }
     
-    h = h / N / (N/2);
-    h *= (1.0 - 2.0 * ((id.x + id.y) % 2));
+    h = perm * (h / float(N * N));
     displacement[id.xy] = float4(h, h, h, 1);
 
 }
