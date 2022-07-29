@@ -18,6 +18,15 @@ public class OceanGeometry : MonoBehaviour {
     [Header("Choppy Factor")]
     public float lambda;
 
+    [Header("Lighting")]
+    public Light lighting;
+
+    [Header("Ocean Material")]
+    public Color diffuseColor;
+    public Color specularColor;
+    public float specularExponent;
+
+
     [Header("Compute Shaders")]
     public ComputeShader initialSpectrumCompute; // h0(k) h0(-k)
     public ComputeShader fourierAmplitudeCompute;
@@ -30,12 +39,11 @@ public class OceanGeometry : MonoBehaviour {
     public Material matVis1;
     public Material matVis2;
     public Material waveSurface;
-    public Texture2D gaussianNoiseTexture1;
-    public Texture2D gaussianNoiseTexture2;
-    public RenderTexture y;
-    public RenderTexture dx;
-    public RenderTexture dz;
-    public RenderTexture displacement;
+    
+    
+    
+    Texture2D gaussianNoiseTexture1;
+    Texture2D gaussianNoiseTexture2;
 
     bool shouldUpdateStatic = false;
     MeshGenerator meshGenerator;
@@ -70,6 +78,13 @@ public class OceanGeometry : MonoBehaviour {
         matVis2.SetTexture("_MainTex", waveGenerator.slope);
         waveSurface.SetTexture("_Displacement", waveGenerator.displacement);
         waveSurface.SetTexture("_Slope", waveGenerator.slope);
+
+        waveSurface.SetVector("_LightPos", new Vector4(lighting.transform.position.x, lighting.transform.position.y, lighting.transform.position.z, 0));
+        waveSurface.SetVector("_LightColor", lighting.color);
+
+        waveSurface.SetVector("_MatDiffuseColor", diffuseColor);
+        waveSurface.SetVector("_MatSpecularColor", specularColor);
+        waveSurface.SetFloat("_MatSpecularExponent", specularExponent);
 
         //     Texture2D tex2 = new Texture2D(h0minusk_RenderTexture.width, h0minusk_RenderTexture.height, TextureFormat.RGB24, false);
         //     RenderTexture.active = h0minusk_RenderTexture;

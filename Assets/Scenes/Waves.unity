@@ -151,7 +151,7 @@ MeshCollider:
   m_GameObject: {fileID: 334089844}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -163,7 +163,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 334089844}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -525,7 +525,7 @@ MeshCollider:
   m_GameObject: {fileID: 1300405675}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 30
@@ -537,7 +537,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1300405675}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -731,6 +731,10 @@ MonoBehaviour:
   windDirection: {x: 1, y: 1}
   A: 4
   lambda: 1
+  lighting: {fileID: 705507994}
+  diffuseColor: {r: 0.115699545, g: 0.18026741, b: 0.3773585, a: 0}
+  specularColor: {r: 1, g: 1, b: 1, a: 0}
+  specularExponent: 2
   initialSpectrumCompute: {fileID: 7200000, guid: 9ef396ea249dc2b43b71f61c04ecbf38, type: 3}
   fourierAmplitudeCompute: {fileID: 7200000, guid: 5d6e20a9af8ffdf46a423664cefbc445, type: 3}
   butterflyTextureCompute: {fileID: 7200000, guid: f5bab4720b94ffc4481189d77eee44dc, type: 3}
@@ -740,12 +744,6 @@ MonoBehaviour:
   matVis1: {fileID: 2100000, guid: db3faa685f8587045913c7e935d2ae1a, type: 2}
   matVis2: {fileID: 2100000, guid: 72c7aaab2c2e1d04d98c985416de77d0, type: 2}
   waveSurface: {fileID: 2100000, guid: f4fe60cc98ff75545b0ece5c47d2f24b, type: 2}
-  gaussianNoiseTexture1: {fileID: 0}
-  gaussianNoiseTexture2: {fileID: 0}
-  y: {fileID: 0}
-  dx: {fileID: 0}
-  dz: {fileID: 0}
-  displacement: {fileID: 0}
   wavePlane: {fileID: 1300405675}
 --- !u!4 &1936274117
 Transform:
