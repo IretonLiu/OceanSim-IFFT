@@ -15,7 +15,7 @@ public class WaveGenerator {
     public Texture2D gaussianNoise2;
     ComputeShader initialSpectrumCompute; // h0(k) h0(-k)
     ComputeShader fourierAmplitudeCompute;
-    //ComputeShader butterflyTextureCompute;
+    public ComputeShader butterflyTextureCompute;
     ComputeShader butterflyCompute;
     ComputeShader inversePermutationCompute;
     ComputeShader combineCompute;
@@ -24,7 +24,7 @@ public class WaveGenerator {
     RenderTexture h0k_RenderTexture;
     RenderTexture h0minusk_RenderTexture;
 
-    RenderTexture butterflyTexture;
+    public RenderTexture butterflyTexture;
 
     RenderTexture hktDy; // height change, this is the h0 from the paper
     RenderTexture hktDx; // directional change
@@ -129,17 +129,35 @@ public class WaveGenerator {
         fourierAmplitudeCompute.Dispatch(fourierAmplitudeKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
     }
 
-    //public void ComputeButterflyTexture()
-    //{
-    //    createTexture(ref butterflyTexture, (int)Mathf.Log(meshGenerator.N, 2), meshGenerator.M);
-    //    int butterflyTextureKernel = butterflyTextureCompute.FindKernel("CSButterflyTexture");
+    public void ComputeButterflyTexture() {
 
-    //    butterflyTextureCompute.SetInt("N", meshGenerator.N);
-    //    butterflyTextureCompute.SetTexture(butterflyTextureKernel, "butterflyTexture", butterflyTexture);
+        int[] bitReversed = new int[meshGenerator.N];
+        for (int x = 0; x < meshGenerator.N; x++) {
+            int k = (int)Mathf.Log(meshGenerator.N, 2);
+            int reversed = 0;
 
-    //    butterflyTextureCompute.Dispatch(butterflyTextureKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
-    //    return;
-    //}
+            for (int i = 0; i < k; i++) {
+                // If the ith bit of x is toggled, toggle the ith bit from the right of reversed
+                reversed |= (x & (1 << i)) != 0 ? 1 << (k - 1 - i) : 0;
+            }
+            bitReversed[x] = reversed;
+
+        }
+
+        ComputeBuffer bitReversedBuffer = new ComputeBuffer(meshGenerator.N, sizeof(int));
+        bitReversedBuffer.SetData(bitReversed);
+
+        createTexture(ref butterflyTexture, (int)Mathf.Log(meshGenerator.N, 2), meshGenerator.M);
+        int butterflyTextureKernel = butterflyTextureCompute.FindKernel("CSButterflyTexture");
+
+        butterflyTextureCompute.SetInt("N", meshGenerator.N);
+        butterflyTextureCompute.SetTexture(butterflyTextureKernel, "butterflyTexture", butterflyTexture);
+        butterflyTextureCompute.SetBuffer(butterflyTextureKernel, "bit_reversed", bitReversedBuffer);
+
+        butterflyTextureCompute.Dispatch(butterflyTextureKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);
+        bitReversedBuffer.Dispose();
+        return;
+    }
 
     public void PrecomputeTwiddleFactorsAndInputIndices() {
         int size = meshGenerator.N;

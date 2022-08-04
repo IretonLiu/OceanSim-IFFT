@@ -28,7 +28,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     }
     
-    h = perm * (h / float(N * N));
+    h = perm * (h);
     displacement[id.xy] = float4(h, h, h, 1);
 
 }

@@ -37,11 +37,11 @@ Shader "Unlit/WaveSurfaceShader"
                 float4 vertex : SV_POSITION;
                 float3 worldPos: TEXCOORD1;
                 float2 worldUV : TEXCOORD2;
-                float3 normal : TEXCOORD3;
+                float4 slope : TEXCOORD3;
                 float3 viewVector: TEXCOORD4;   
             };
 
-            float4  _LightPos;
+            //float4  _LightPos;
             float4  _LightColor;
             float4  _MatDiffuseColor;
             float4  _MatSpecularColor;
@@ -66,10 +66,9 @@ Shader "Unlit/WaveSurfaceShader"
             {
                 float3 worldPos = mul(unity_ObjectToWorld, v.vertex);
                 float2 worldUV = float2(worldPos.xz);
-                float4 displacement = tex2Dlod(_Displacement, float4(worldUV, 0, 0)*0.002);
-                v.vertex += displacement;
-                float4 slope = tex2Dlod(_Slope, float4(worldUV, 0, 0) * 0.002);
-                float3 normal = calculateNormal(slope.xyz);
+                float4 displacement = tex2Dlod(_Displacement, float4(worldUV, 0, 0) / lengthScale);
+                v.vertex += mul(unity_WorldToObject, displacement);
+                float4 slope = tex2Dlod(_Slope, float4(worldUV, 0, 0) / lengthScale);
 
                 float3 viewVector = _WorldSpaceCameraPos.xyz - worldPos;
 
@@ -78,7 +77,7 @@ Shader "Unlit/WaveSurfaceShader"
                 o.worldPos = worldPos;
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.worldUV = worldUV;
-                o.normal = normal;
+                o.slope = slope;
                 o.viewVector = viewVector;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
@@ -90,11 +89,13 @@ Shader "Unlit/WaveSurfaceShader"
             ) {
                 float3 L, R; // Light and reflected light direction;
 
-                if (_LightPos.w == 0.0) { // directional light
-                    L = normalize(_LightPos.xyz);
+                float4 lightDir = normalize(_WorldSpaceLightPos0);
+
+                if (lightDir.w == 0.0) { // directional light
+                    L = normalize(lightDir.xyz);
                 }
                 else { // point light
-                    L = normalize(_LightPos.xyz / _LightPos.w - eyeCoords);
+                    L = normalize(lightDir.xyz / lightDir.w - eyeCoords);
                 };
 
                 if (dot(L, N) <= 0.0) { // light does not illuminate the surface
@@ -118,12 +119,13 @@ Shader "Unlit/WaveSurfaceShader"
             fixed4 frag (v2f i) : SV_Target
             {
                 //float4 slope = tex2Dlod(_Slope, float4(i.worldUV, 0, 0)*0.001);
-                float3 normal = i.normal;
+                float3 normal = calculateNormal(i.slope.xyz);
                 // sample the texture
 
                 float3 viewDir = normalize(i.viewVector);
                 
                 fixed4 col = fixed4(lightingEquation(i.worldPos, normal, viewDir), 1.0);
+                //fixed4 col = fixed4(normal, 1.0);
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;

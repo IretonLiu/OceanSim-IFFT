@@ -4,7 +4,7 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 
-// RWStructuredBuffer<int> bit_reversed;
+RWStructuredBuffer<int> bit_reversed;
 int N;
 
 RWTexture2D<float4> butterflyTexture;
@@ -31,10 +31,10 @@ void CSButterflyTexture (uint3 id : SV_DispatchThreadID)
     if(x.x == 0){
         if(butterflywing == 1) // top wing
             butterflyTexture[id.xy] = float4(twiddle.x, twiddle.y, 
-                                        reversebits(int(x.y)), reversebits(int(x.y + 1)));
+                                        bit_reversed[x.y], bit_reversed[x.y + 1]);
         else // bottom wing
             butterflyTexture[id.xy] = float4(twiddle.x, twiddle.y, 
-                                        reversebits(int(x.y - 1)), reversebits(int(x.y)));
+                                        bit_reversed[x.y - 1], bit_reversed[x.y]);
     }
     else{
         if(butterflywing == 1) // top wing

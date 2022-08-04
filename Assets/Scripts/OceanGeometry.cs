@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class OceanGeometry : MonoBehaviour {
     [Header("Mesh Settings")]
@@ -36,14 +37,14 @@ public class OceanGeometry : MonoBehaviour {
     public ComputeShader combineCompute;
 
     [Header("Other")]
-    public Material matVis1;
-    public Material matVis2;
+    public RawImage vis1;
+    public RawImage vis2;
     public Material waveSurface;
     
     
     
-    Texture2D gaussianNoiseTexture1;
-    Texture2D gaussianNoiseTexture2;
+    public Texture2D gaussianNoiseTexture1;
+    public Texture2D gaussianNoiseTexture2;
 
     bool shouldUpdateStatic = false;
     MeshGenerator meshGenerator;
@@ -74,8 +75,10 @@ public class OceanGeometry : MonoBehaviour {
         waveGenerator.CalcSlopeVector();
         waveGenerator.CombineDisplacementAndSlope(lambda);
 
-        matVis1.SetTexture("_MainTex", waveGenerator.displacement);
-        matVis2.SetTexture("_MainTex", waveGenerator.slope);
+        vis1.texture = waveGenerator.displacement;
+        vis2.texture = waveGenerator.slope;
+
+        waveSurface.SetFloat("lengthScale", meshGenerator.Lx);
         waveSurface.SetTexture("_Displacement", waveGenerator.displacement);
         waveSurface.SetTexture("_Slope", waveGenerator.slope);
 
@@ -95,8 +98,8 @@ public class OceanGeometry : MonoBehaviour {
 
     void OnValidate() {
         // update mesh settings
-        if (N < 256) N = 256;
-        if (M < 256) M = 256;
+        if (N < 32) N = 32;
+        if (M < 32) M = 32;
         if (Lx < 1) Lx = 1;
         if (Lz < 1) Lz = 1;
 
@@ -130,7 +133,12 @@ public class OceanGeometry : MonoBehaviour {
                                         butterflyCompute, inversePermutationCompute, combineCompute);
         waveGenerator.SetPhillipsParams(windSpeed, windDirection, A);
         waveGenerator.InitialSpectrum();
+
+
         waveGenerator.PrecomputeTwiddleFactorsAndInputIndices();
+
+        //waveGenerator.butterflyTextureCompute = butterflyTextureCompute;
+        //waveGenerator.ComputeButterflyTexture();
 
     }
 }

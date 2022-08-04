@@ -49,8 +49,8 @@ void CSFourierAmplitude (uint3 id : SV_DispatchThreadID)
 	// float omega = dispersion(k);
 
     float k_mag = length(k);    // |k|
-    if (k_mag < 0.000001) k_mag = 0.0;
-    float omega = sqrt(9.81 * k_mag) ;
+    if (k_mag < 0.00001) k_mag = 0.0;
+    float omega = dispersion(k);    
 
     float2 h0k = H0k[id.xy].rg;
     float2 h0minusk = H0minusk[id.xy].rg;
