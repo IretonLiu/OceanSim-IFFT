@@ -848,7 +848,7 @@ MonoBehaviour:
   Lz: 1000
   windSpeed: 40
   windDirection: {x: 1, y: 1}
-  A: 4
+  A: 0.0000006
   lambda: 1
   lighting: {fileID: 705507994}
   diffuseColor: {r: 0.115699545, g: 0.18026741, b: 0.3773585, a: 0}

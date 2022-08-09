@@ -37,7 +37,7 @@ Shader "Unlit/WaveSurfaceShader"
                 float4 vertex : SV_POSITION;
                 float3 worldPos: TEXCOORD1;
                 float2 worldUV : TEXCOORD2;
-                float4 slope : TEXCOORD3;
+                float3 normal : TEXCOORD3;
                 float3 viewVector: TEXCOORD4;   
             };
 
@@ -67,67 +67,85 @@ Shader "Unlit/WaveSurfaceShader"
                 float3 worldPos = mul(unity_ObjectToWorld, v.vertex);
                 float2 worldUV = float2(worldPos.xz);
                 float4 displacement = tex2Dlod(_Displacement, float4(worldUV, 0, 0) / lengthScale);
-                v.vertex += mul(unity_WorldToObject, displacement);
+                v.vertex += mul(unity_ObjectToWorld, displacement);
                 float4 slope = tex2Dlod(_Slope, float4(worldUV, 0, 0) / lengthScale);
-
-                float3 viewVector = _WorldSpaceCameraPos.xyz - worldPos;
+                float3 normal = calculateNormal(slope.xyz);
+                float3 viewVector = _WorldSpaceCameraPos.xyz - worldPos; // This is V in the lighting equations
 
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.worldPos = worldPos;
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uv = mul(unity_CameraInvProjection, float4(v.uv * 2 - 1, 0, -1));
                 o.worldUV = worldUV;
-                o.slope = slope;
+                o.normal = normal;
                 o.viewVector = viewVector;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
-            float3 lightingEquation(float3 eyeCoords,              // pixel in eye coord
+            float4 lightingEquation(float3 eyeCoords,              // pixel in eye coord
                 float3 N,                      // normal of the pixel
                 float3 V                       // direction to the viewer
             ) {
                 float3 L, R; // Light and reflected light direction;
 
-                float4 lightDir = normalize(_WorldSpaceLightPos0);
+                float4 lightDir = -_WorldSpaceLightPos0;
 
                 if (lightDir.w == 0.0) { // directional light
-                    L = normalize(lightDir.xyz);
+                    L = -normalize(lightDir.xyz);
                 }
                 else { // point light
                     L = normalize(lightDir.xyz / lightDir.w - eyeCoords);
                 };
 
+
+                float4 emissive_color = float4(1.0, 1.0, 1.0, 1.0);
+                float4 ambient_color = float4(0.0, 0.65, 0.75, 1.0);
+                float4 diffuse_color = float4(0.5, 0.65, 0.75, 1.0);
+                float4 specular_color = float4(1.0, 0.25, 0.0, 1.0);
+
+                float emissive_contribution = 0.00;
+                float ambient_contribution = 0.30;
+                float diffuse_contribution = 0.30;
+                float specular_contribution = 1.80;
+
+                float3 H = normalize(L + V);
+
                 if (dot(L, N) <= 0.0) { // light does not illuminate the surface
-                    return 0.0;
+                    return float4(0.0, 0.65, 0.75, 1.0) *0.2;
                 };
 
-                float3 reflection = dot(L, N) * _LightColor.rgb * _MatDiffuseColor.rgb;
+                //float3 reflection = dot(L, N) * _LightColor.rgb * _MatDiffuseColor.rgb;
 
-                R = -reflect(L, N);
+                //R = -reflect(L, N);
 
-                if (dot(R, V) > 0.0) { // ray is reflected toward the the viewer
-                    float factor = pow(dot(R, V), _MatSpecularExponent);
-                    reflection = reflection + _MatSpecularColor.rgb * _LightColor.rgb * factor;
+                //if (dot(R, V) > 0.0) { // ray is reflected toward the the viewer
+                //    float factor = pow(dot(R, V), _MatSpecularExponent);
+                //    reflection = reflection + _MatSpecularColor.rgb * _LightColor.rgb * factor;
 
-                }
+                //}
+                float4 color = emissive_color * emissive_contribution +
+                    ambient_color * ambient_contribution +
+                    diffuse_color * diffuse_contribution * max(dot(L, N), 0) +
+                    specular_color * specular_contribution * pow(dot(N, H), 80.0);
 
-                return reflection;
+                return color;
             }
 
 
             fixed4 frag (v2f i) : SV_Target
             {
                 //float4 slope = tex2Dlod(_Slope, float4(i.worldUV, 0, 0)*0.001);
-                float3 normal = calculateNormal(i.slope.xyz);
+                
                 // sample the texture
 
                 float3 viewDir = normalize(i.viewVector);
                 
-                fixed4 col = fixed4(lightingEquation(i.worldPos, normal, viewDir), 1.0);
-                //fixed4 col = fixed4(normal, 1.0);
+                //fixed4 col = fixed4(lightingEquation(i.worldPos, i.normal, viewDir).rgba);
+                fixed4 col = fixed4(_WorldSpaceLightPos0.xyz, 1.0);
+                //fixed4 col = dot(i.normal, normalize(_WorldSpaceLightPos0.xyz));
                 // apply fog
-                UNITY_APPLY_FOG(i.fogCoord, col);
+                //UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
             }
             ENDCG

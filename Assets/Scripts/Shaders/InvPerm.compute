@@ -3,7 +3,7 @@
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-RWTexture2D<float4> displacement; // heightmap
+RWTexture2D<float4> output;
 
 RWTexture2D<float4> pingpong0; 
 RWTexture2D<float4> pingpong1; 
@@ -29,7 +29,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     }
     
     h = perm * (h);
-    displacement[id.xy] = float4(h, h, h, 1);
+    output[id.xy] = float4(h, h, h, 1);
 
 }
 

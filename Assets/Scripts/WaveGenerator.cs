@@ -262,7 +262,7 @@ public class WaveGenerator {
 
         inversePermutationCompute.SetBool("pingpong", pingpong);
         inversePermutationCompute.SetInt("N", meshGenerator.N);
-        inversePermutationCompute.SetTexture(invPermKernel, "displacement", output);
+        inversePermutationCompute.SetTexture(invPermKernel, "output", output);
         inversePermutationCompute.SetTexture(invPermKernel, "pingpong0", pingpong0);
         inversePermutationCompute.SetTexture(invPermKernel, "pingpong1", pingpong1);
         inversePermutationCompute.Dispatch(invPermKernel, meshGenerator.N / LOCAL_WORK_GROUP_X, meshGenerator.M / LOCAL_WORK_GROUP_Y, 1);

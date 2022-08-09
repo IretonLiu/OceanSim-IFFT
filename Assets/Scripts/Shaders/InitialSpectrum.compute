@@ -33,7 +33,7 @@ float phillips(float2 k,float L){
     float damping = 0.001;
     float l = L * damping;
 
-    float kdotw = pow(dot(normalize(k), normalize(windDirection)), 6);
+    float kdotw = pow(dot(normalize(k), normalize(windDirection)), 2);
 
     return A * (exp(-1.0f / (k_magSqr * L * L)) / (k_magSqr * k_magSqr)) * exp(-k_magSqr * l * l) * kdotw;
 }

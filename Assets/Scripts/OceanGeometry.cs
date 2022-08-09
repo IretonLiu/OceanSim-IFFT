@@ -17,6 +17,7 @@ public class OceanGeometry : MonoBehaviour {
     public float A;
 
     [Header("Choppy Factor")]
+    [Range(0,1)]
     public float lambda;
 
     [Header("Lighting")]
