@@ -5,11 +5,11 @@ public class OceanGeometry : MonoBehaviour {
     [Header("Mesh Settings")]
     public bool isSquare;
     // number of points on each side
-    public int N;
-    public int M;
+    public int N = 256;
+    public int M = 256;
     // width and length of the mesh
-    public float Lx;
-    public float Lz;
+    public float Lx = 1000;
+    public float Lz = 1000;
     // Start is called before the first frame update
     [Header("Phillips Spectrum")]
     public float windSpeed;

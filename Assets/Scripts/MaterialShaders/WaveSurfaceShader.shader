@@ -21,7 +21,7 @@ Shader "Unlit/WaveSurfaceShader"
             #pragma fragment frag
             // make fog work
             #pragma multi_compile_fog
-
+            #pragma target 4.0
             #include "UnityCG.cginc"
 
             struct appdata
@@ -33,12 +33,12 @@ Shader "Unlit/WaveSurfaceShader"
             struct v2f
             {
                 float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
                 float3 worldPos: TEXCOORD1;
                 float2 worldUV : TEXCOORD2;
                 float3 normal : TEXCOORD3;
                 float3 viewVector: TEXCOORD4;   
+                /*INTERNAL_DATA*/
             };
 
             //float4  _LightPos;
@@ -112,7 +112,8 @@ Shader "Unlit/WaveSurfaceShader"
                 float3 H = normalize(L + V);
 
                 if (dot(L, N) <= 0.0) { // light does not illuminate the surface
-                    return float4(0.0, 0.65, 0.75, 1.0) *0.2;
+                    //return float4(0.0, 0.65, 0.75, 1.0) *0.2;
+                    return 0.0;
                 };
 
                 //float3 reflection = dot(L, N) * _LightColor.rgb * _MatDiffuseColor.rgb;
@@ -141,8 +142,8 @@ Shader "Unlit/WaveSurfaceShader"
 
                 float3 viewDir = normalize(i.viewVector);
                 
-                //fixed4 col = fixed4(lightingEquation(i.worldPos, i.normal, viewDir).rgba);
-                fixed4 col = fixed4(_WorldSpaceLightPos0.xyz, 1.0);
+                fixed4 col = fixed4(lightingEquation(i.worldPos, i.normal, viewDir));
+                //fixed4 col = fixed4(_WorldSpaceLightPos0.xyz, 1.0);
                 //fixed4 col = dot(i.normal, normalize(_WorldSpaceLightPos0.xyz));
                 // apply fog
                 //UNITY_APPLY_FOG(i.fogCoord, col);
